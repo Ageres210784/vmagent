@@ -45,7 +45,7 @@
 - name: Set list of names
   set_fact:
     list_of_filenames_to_add: "{{ list_of_filenames_to_add|default([]) }} + [ '{{ item.filename }}' ]"
-  with_items: "{{ vmagent_additional_configs }}"
+  with_items: "{{ vmagent_additional_configs | flatten }}"
 
 - name: Clear scrape_configs directory
   file:
@@ -55,12 +55,12 @@
 
 - name: Ensure additional configuration files
   copy:
-    content: "{{ item.data }}"
+    content: "{{ item.data | to_nice_yaml(indent=2) }}"
     dest: "{{ vmagent_config_dir }}/scrape_configs/{{ item.filename }}"
-    mode: 0755
+    mode: 0644
     owner: root
     group: root
-  with_items: "{{ vmagent_additional_configs }}"
+  with_items: "{{ vmagent_additional_configs | flatten }}"
   notify:
     - Reload vmagent
 
