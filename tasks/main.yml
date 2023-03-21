@@ -52,6 +52,10 @@
     path: "{{ vmagent_config_dir }}/scrape_configs/{{ item }}"
     state: absent
   with_items: "{{ list_of_scrape_filenames | default([]) | difference(list_of_filenames_to_add) }}"
+  notify:
+    - Check configuration
+    - Print result of check
+    - Reload vmagent
 
 - name: Ensure additional configuration files
   copy:
@@ -62,6 +66,8 @@
     group: root
   with_items: "{{ vmagent_additional_configs | flatten }}"
   notify:
+    - Check configuration
+    - Print result of check
     - Reload vmagent
 
 - name: Start docker vmagent container
