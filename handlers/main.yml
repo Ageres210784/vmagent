@@ -1,11 +1,8 @@
 ---
+- name: Check configuration
+  shell: " {{ vmagent_check_command }}"
+  register: check_result
 - name: Reload vmagent
   uri:
     url: "{{ vmagent_reload_url }}"
     method: POST
-- name: Check configuration
-  shell: " {{ vmagent_check_command }}"
-  register: check_result
-- name: Print result of check
-  debug: 
-      msg: "vmagent msg:  {{ command_result.stdout }}"
