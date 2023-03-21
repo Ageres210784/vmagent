@@ -1,7 +1,6 @@
 ---
 - name: Check configuration
   shell: " {{ vmagent_check_command }}"
-  register: check_result
 - name: Reload vmagent
   uri:
     url: "{{ vmagent_reload_url }}"
