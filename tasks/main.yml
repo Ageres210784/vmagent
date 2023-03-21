@@ -30,6 +30,7 @@
     group: root
   notify:
     - Reload vmagent
+    - Check configuration
 
 - name: Find scrape_configs files
   find:
@@ -54,7 +55,6 @@
   with_items: "{{ list_of_scrape_filenames | default([]) | difference(list_of_filenames_to_add) }}"
   notify:
     - Check configuration
-    - Print result of check
     - Reload vmagent
 
 - name: Ensure additional configuration files
@@ -67,7 +67,6 @@
   with_items: "{{ vmagent_additional_configs | flatten }}"
   notify:
     - Check configuration
-    - Print result of check
     - Reload vmagent
 
 - name: Start docker vmagent container
