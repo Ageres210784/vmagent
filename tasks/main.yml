@@ -29,8 +29,8 @@
     owner: root
     group: root
   notify:
-    - Reload vmagent
     - Check configuration
+    - Reload vmagent
 
 - name: Find scrape_configs files
   find:
