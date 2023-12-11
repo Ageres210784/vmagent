@@ -94,3 +94,50 @@
         default:
           external:
             name: "{{ vmagent_docker_network_name }}"
+  when: not vmagent_swarm_cluster or vm_swarm_manager is undefined
+
+- name: Deploy vmagent to docker swarm
+  block:
+    - name: Ensure pip installation
+      package:
+        name: "python3-pip"
+        state: present
+
+    - name: Install newer version of pip itself
+      pip:
+        name: "pip"
+        state: latest
+        executable: pip3
+
+    - name: Install jsondiff from pip
+      pip:
+        name: "jsondiff"
+        state: present
+        executable: pip3
+
+    - name: Deploy docker vmagent container in swarm
+      community.docker.docker_stack:
+        state: present
+        name: "{{ vmagent_stack_name }}"
+        compose:
+          - version: '3.5'
+            services:
+              vmagent:
+                image: "{{ vmagent_docker_image }}"
+                command: "{{ vmagent_command }}"
+                hostname: "{{ vmagent_container_name }}"
+                labels: "{{ vmagent_docker_labels }}"
+                volumes:
+                  - "{{ vmagent_storage_dir }}:/vmagentdata"
+                  - "{{ vmagent_config_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml"
+                  - "{{ vmagent_config_dir }}/scrape_configs:/etc/prometheus/scrape_configs"
+                extra_hosts: "{{ vmagent_extra_hosts }}"
+                deploy: "{{ vmagent_swarm_deploy }}"
+            networks:
+              default:
+                external:
+                  name: "{{ vmagent_docker_network_name }}"
+  delegate_to: "{{ vm_swarm_manager }}"
+  when:
+    - vmagent_swarm_cluster
+    - vm_swarm_manager is defined
