@@ -137,6 +137,7 @@
               default:
                 external:
                   name: "{{ vmagent_docker_network_name }}"
+      run_once: True
   delegate_to: "{{ vm_swarm_manager }}"
   when:
     - vmagent_swarm_cluster
