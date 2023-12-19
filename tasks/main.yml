@@ -81,7 +81,7 @@
           container_name: "{{ vmagent_container_name }}"
           command: "{{ vmagent_command }}"
           ports:
-            - "{{ vmagent_address }}:8429:8429"
+            - "{{ vmagent_address }}:{{ vmagent_port }}:8429"
           volumes:
             - "{{ vmagent_storage_dir }}:/vmagentdata"
             - "{{ vmagent_config_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml"
@@ -127,6 +127,8 @@
                 command: "{{ vmagent_command }}"
                 hostname: "{{ vmagent_container_name }}"
                 labels: "{{ vmagent_docker_labels }}"
+                ports:
+                  - "{{ vmagent_port }}:8429"
                 volumes:
                   - "{{ vmagent_storage_dir }}:/vmagentdata"
                   - "{{ vmagent_config_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml"
