@@ -1,6 +1,10 @@
 ---
 - name: Check configuration
   shell: " {{ vmagent_check_command }}"
+  register: result
+  retries: 3
+  delay: 3
+  until: result is not failed
 - name: Reload vmagent
   uri:
     url: "{{ vmagent_reload_url }}"
