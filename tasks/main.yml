@@ -119,6 +119,7 @@
       community.docker.docker_stack:
         state: present
         name: "{{ vmagent_stack_name }}"
+        with_registry_auth: yes
         compose:
           - version: '3.5'
             services:
