@@ -40,12 +40,12 @@
 
 - name: Select names of scrape_config files
   set_fact:
-    list_of_scrape_filenames: "{{ list_of_scrape_filenames|default([]) }} + [ '{{ item.path|basename }}' ]"
+    list_of_scrape_filenames: "{{ list_of_scrape_filenames|default([]) + [ item.path|basename ] }}"
   with_items: "{{ list_of_scrape_files.files }}"
 
 - name: Set list of names
   set_fact:
-    list_of_filenames_to_add: "{{ list_of_filenames_to_add|default([]) }} + [ '{{ item.filename }}' ]"
+    list_of_filenames_to_add: "{{ list_of_filenames_to_add|default([]) + [ item.filename ] }}"
   with_items: "{{ vmagent_additional_configs | flatten }}"
 
 - name: Clear scrape_configs directory
