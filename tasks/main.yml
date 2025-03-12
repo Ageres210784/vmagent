@@ -1,98 +1,100 @@
 ---
-- name: Ensure storage directory
-  file:
-    state: directory
-    path: "{{ vmagent_storage_dir }}"
-    mode: 0755
-    owner: root
-    group: root
+- name: Deploy vmagent to docker container
+  block:
+  - name: Ensure storage directory
+    file:
+      state: directory
+      path: "{{ vmagent_storage_dir }}"
+      mode: 0755
+      owner: root
+      group: root
 
-- name: Ensure scrape_configs directory
-  file:
-    state: directory
-    path: "{{ vmagent_config_dir }}/scrape_configs"
-    mode: 0755
-    owner: root
-    group: root
+  - name: Ensure scrape_configs directory
+    file:
+      state: directory
+      path: "{{ vmagent_config_dir }}/scrape_configs"
+      mode: 0755
+      owner: root
+      group: root
 
-- name: Show configuration
-  debug:
-    var: prometheus_config
-  tags:
-    - show_config
+  - name: Show configuration
+    debug:
+      var: prometheus_config
+    tags:
+      - show_config
 
-- name: Ensure configuration file
-  template:
-    src: prometheus.yml.j2
-    dest: "{{ vmagent_config_dir }}/prometheus.yml"
-    mode: 0755
-    owner: root
-    group: root
-  notify:
-    - Check configuration
-    - Reload vmagent
+  - name: Ensure configuration file
+    template:
+      src: prometheus.yml.j2
+      dest: "{{ vmagent_config_dir }}/prometheus.yml"
+      mode: 0755
+      owner: root
+      group: root
+    notify:
+      - Check configuration
+      - Reload vmagent
 
-- name: Find scrape_configs files
-  find:
-    paths: "{{ vmagent_config_dir }}/scrape_configs"
-    patterns: "*.yml"
-  register: list_of_scrape_files
+  - name: Find scrape_configs files
+    find:
+      paths: "{{ vmagent_config_dir }}/scrape_configs"
+      patterns: "*.yml"
+    register: list_of_scrape_files
 
-- name: Select names of scrape_config files
-  set_fact:
-    list_of_scrape_filenames: "{{ list_of_scrape_filenames|default([]) + [ item.path|basename ] }}"
-  with_items: "{{ list_of_scrape_files.files }}"
+  - name: Select names of scrape_config files
+    set_fact:
+      list_of_scrape_filenames: "{{ list_of_scrape_filenames|default([]) + [ item.path|basename ] }}"
+    with_items: "{{ list_of_scrape_files.files }}"
 
-- name: Set list of names
-  set_fact:
-    list_of_filenames_to_add: "{{ list_of_filenames_to_add|default([]) + [ item.filename ] }}"
-  with_items: "{{ vmagent_additional_configs | flatten }}"
+  - name: Set list of names
+    set_fact:
+      list_of_filenames_to_add: "{{ list_of_filenames_to_add|default([]) + [ item.filename ] }}"
+    with_items: "{{ vmagent_additional_configs | flatten }}"
 
-- name: Clear scrape_configs directory
-  file:
-    path: "{{ vmagent_config_dir }}/scrape_configs/{{ item }}"
-    state: absent
-  with_items: "{{ list_of_scrape_filenames | default([]) | difference(list_of_filenames_to_add) }}"
-  notify:
-    - Check configuration
-    - Reload vmagent
+  - name: Clear scrape_configs directory
+    file:
+      path: "{{ vmagent_config_dir }}/scrape_configs/{{ item }}"
+      state: absent
+    with_items: "{{ list_of_scrape_filenames | default([]) | difference(list_of_filenames_to_add) }}"
+    notify:
+      - Check configuration
+      - Reload vmagent
 
-- name: Ensure additional configuration files
-  copy:
-    content: "{{ item.data | to_nice_yaml(indent=2) }}"
-    dest: "{{ vmagent_config_dir }}/scrape_configs/{{ item.filename }}"
-    mode: 0644
-    owner: root
-    group: root
-  with_items: "{{ vmagent_additional_configs | flatten }}"
-  notify:
-    - Check configuration
-    - Reload vmagent
+  - name: Ensure additional configuration files
+    copy:
+      content: "{{ item.data | to_nice_yaml(indent=2) }}"
+      dest: "{{ vmagent_config_dir }}/scrape_configs/{{ item.filename }}"
+      mode: 0644
+      owner: root
+      group: root
+    with_items: "{{ vmagent_additional_configs | flatten }}"
+    notify:
+      - Check configuration
+      - Reload vmagent
 
-- name: Start docker vmagent container
-  community.docker.docker_compose_v2:
-    state: present
-    project_name: vmagent
-    definition:
-      services:
-        vmagent:
-          image: "{{ vmagent_docker_image }}"
-          container_name: "{{ vmagent_container_name }}"
-          command: "{{ vmagent_command }}"
-          ports:
-            - "{{ vmagent_address }}:{{ vmagent_port }}:8429"
-          volumes:
-            - "{{ vmagent_storage_dir }}:/vmagentdata"
-            - "{{ vmagent_config_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml"
-            - "{{ vmagent_config_dir }}/scrape_configs:/etc/prometheus/scrape_configs"
-          hostname: "{{ vmagent_container_name }}"
-          restart: always
-          labels: "{{ vmagent_docker_labels }}"
-          extra_hosts: "{{ vmagent_extra_hosts }}"
-      networks:
-        default:
-          external: true
-          name: "{{ vmagent_docker_network_name }}"
+  - name: Start docker vmagent container
+    community.docker.docker_compose_v2:
+      state: present
+      project_name: vmagent
+      definition:
+        services:
+          vmagent:
+            image: "{{ vmagent_docker_image }}"
+            container_name: "{{ vmagent_container_name }}"
+            command: "{{ vmagent_command }}"
+            ports:
+              - "{{ vmagent_address }}:{{ vmagent_port }}:8429"
+            volumes:
+              - "{{ vmagent_storage_dir }}:/vmagentdata"
+              - "{{ vmagent_config_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml"
+              - "{{ vmagent_config_dir }}/scrape_configs:/etc/prometheus/scrape_configs"
+            hostname: "{{ vmagent_container_name }}"
+            restart: always
+            labels: "{{ vmagent_docker_labels }}"
+            extra_hosts: "{{ vmagent_extra_hosts }}"
+        networks:
+          default:
+            external: true
+            name: "{{ vmagent_docker_network_name }}"
   when: not vmagent_swarm_cluster or vm_swarm_manager is undefined
 
 - name: Deploy vmagent to docker swarm
@@ -114,14 +116,36 @@
         state: present
         executable: pip3
 
+    - name: Check if config-file has changes
+      community.docker.docker_config:
+        name: vmagent-config
+        data: "{{ prometheus_config | to_nice_yaml(indent=2) }}"
+      check_mode: yes
+      register: config_changes
+      run_once: True
+
+    - name: Delete service
+      community.docker.docker_swarm_service:
+        state: absent
+        name: "{{ vmagent_stack_name }}_vmagent"
+      run_once: True
+      when: config_changes.changed
+
+    - name: Update config
+      community.docker.docker_config:
+        name: vmagent-config
+        data: "{{ prometheus_config | to_nice_yaml(indent=2) }}"
+        state: present
+      run_once: True
+      when: config_changes.changed
+
     - name: Deploy docker vmagent container in swarm
       community.docker.docker_stack:
         state: present
         name: "{{ vmagent_stack_name }}"
         with_registry_auth: yes
         compose:
-          - version: '3.5'
-            services:
+          - services:
               vmagent:
                 image: "{{ vmagent_docker_image }}"
                 command: "{{ vmagent_command }}"
@@ -129,16 +153,20 @@
                 labels: "{{ vmagent_docker_labels }}"
                 ports:
                   - "{{ vmagent_port }}:8429"
+                configs:
+                  - source: vmagent-config
+                    target: /etc/prometheus/prometheus.yml
                 volumes:
-                  - "{{ vmagent_storage_dir }}:/vmagentdata"
-                  - "{{ vmagent_config_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml"
-                  - "{{ vmagent_config_dir }}/scrape_configs:/etc/prometheus/scrape_configs"
+                  - "/var/run/docker.sock:/var/run/docker.sock:ro"
                 extra_hosts: "{{ vmagent_extra_hosts }}"
                 deploy: "{{ vmagent_swarm_deploy }}"
+            configs:
+              vmagent-config:
+                external: true
             networks:
               default:
-                external:
-                  name: "{{ vmagent_docker_network_name }}"
+                name: "{{ vmagent_docker_network_name }}"
+                external: true
       run_once: True
   delegate_to: "{{ vm_swarm_manager }}"
   when:
