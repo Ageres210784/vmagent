@@ -124,10 +124,10 @@
       register: config_changes
       run_once: True
 
-    - name: Delete stack
-      community.docker.docker_stack:
+    - name: Delete service
+      community.docker.docker_swarm_service:
         state: absent
-        name: "{{ vmagent_stack_name }}"
+        name: "{{ vmagent_stack_name }}_vmagent"
       run_once: True
       when: config_changes.changed
 
