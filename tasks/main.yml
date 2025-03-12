@@ -122,11 +122,13 @@
         data: "{{ prometheus_config | to_nice_yaml(indent=2) }}"
       check_mode: yes
       register: config_changes
+      run_once: True
 
     - name: Delete stack
       community.docker.docker_stack:
         state: absent
         name: "{{ vmagent_stack_name }}"
+      run_once: True
       when: config_changes.changed
 
     - name: Update config
@@ -134,6 +136,7 @@
         name: vmagent-config
         data: "{{ prometheus_config | to_nice_yaml(indent=2) }}"
         state: present
+      run_once: True
       when: config_changes.changed
 
     - name: Deploy docker vmagent container in swarm
