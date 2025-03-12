@@ -119,7 +119,7 @@
     - name: Check if config-file has changes
       community.docker.docker_config:
         name: vmagent-config
-        data: "{{ prometheus_config | to_nice_yaml }}"
+        data: "{{ prometheus_config | to_nice_yaml(indent=2) }}"
       check_mode: yes
       register: config_changes
 
@@ -132,7 +132,7 @@
     - name: Update config
       community.docker.docker_config:
         name: vmagent-config
-        data: "{{ prometheus_config | to_nice_yaml }}"
+        data: "{{ prometheus_config | to_nice_yaml(indent=2) }}"
         state: present
       when: config_changes.changed
 
@@ -154,7 +154,7 @@
                   - source: vmagent-config
                     target: /etc/prometheus/prometheus.yml
                 volumes:
-                  - "/var/run/docker.sock:/var/run/docker.sock"
+                  - "/var/run/docker.sock:/var/run/docker.sock:ro"
                 extra_hosts: "{{ vmagent_extra_hosts }}"
                 deploy: "{{ vmagent_swarm_deploy }}"
             configs:
