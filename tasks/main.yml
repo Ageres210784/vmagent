@@ -160,13 +160,11 @@
                   - "/var/run/docker.sock:/var/run/docker.sock:ro"
                 extra_hosts: "{{ vmagent_extra_hosts }}"
                 deploy: "{{ vmagent_swarm_deploy }}"
+                networks: "{{ vmagent_swarm_networks.keys() }}"
             configs:
               vmagent-config:
                 external: true
-            networks:
-              default:
-                name: "{{ vmagent_docker_network_name }}"
-                external: true
+            networks: "{{ vmagent_swarm_networks }}"
       run_once: True
   delegate_to: "{{ vm_swarm_manager }}"
   when:
