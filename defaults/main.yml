@@ -51,6 +51,10 @@ vmagent_swarm_deploy:
   placement:
     constraints:
       - node.labels.victoriametrics == true
+vmagent_swarm_networks:
+  default:
+    name: "{{ vmagent_docker_network_name }}"
+    external: true
 
 # example vmagent_swarm_deploy:
 #   mode: replicated
