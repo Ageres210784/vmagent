@@ -87,6 +87,7 @@
               - "{{ vmagent_storage_dir }}:/vmagentdata"
               - "{{ vmagent_config_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml"
               - "{{ vmagent_config_dir }}/scrape_configs:/etc/prometheus/scrape_configs"
+              - "/var/run/docker.sock:/var/run/docker.sock:ro"
             hostname: "{{ vmagent_container_name }}"
             restart: always
             labels: "{{ vmagent_docker_labels }}"
