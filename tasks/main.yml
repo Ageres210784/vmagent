@@ -166,8 +166,7 @@
                 command: "{{ vmagent_command }}"
                 hostname: "{{ vmagent_container_name }}"
                 labels: "{{ vmagent_docker_labels }}"
-                ports:
-                  - "{{ vmagent_port }}:8429"
+                ports: "{{ [ vmagent_port ~ ':8429' ] if vmagent_swarm_add_port else [] }}"
                 configs:
                   - source: vmagent-config
                     target: /etc/prometheus/prometheus.yml

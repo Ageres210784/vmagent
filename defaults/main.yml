@@ -45,6 +45,7 @@ vmagent_additional_configs: []
 
 vmagent_stack_name: victoriametrics
 vmagent_swarm_cluster: false
+vmagent_swarm_add_port: false
 vmagent_swarm_deploy:
   mode: replicated
   replicas: 1
