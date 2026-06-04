@@ -2,7 +2,7 @@
 - name: Deploy vmagent to docker container
   block:
   - name: Ensure storage directory
-    file:
+    ansible.builtin.file:
       state: directory
       path: "{{ vmagent_storage_dir }}"
       mode: 0755
@@ -10,7 +10,7 @@
       group: root
 
   - name: Ensure scrape_configs directory
-    file:
+    ansible.builtin.file:
       state: directory
       path: "{{ vmagent_config_dir }}/scrape_configs"
       mode: 0755
@@ -18,13 +18,13 @@
       group: root
 
   - name: Show configuration
-    debug:
+    ansible.builtin.debug:
       var: prometheus_config
     tags:
       - show_config
 
   - name: Ensure configuration file
-    template:
+    ansible.builtin.template:
       src: prometheus.yml.j2
       dest: "{{ vmagent_config_dir }}/prometheus.yml"
       mode: 0755
@@ -35,32 +35,32 @@
       - Reload vmagent
 
   - name: Find scrape_configs files
-    find:
+    ansible.builtin.find:
       paths: "{{ vmagent_config_dir }}/scrape_configs"
       patterns: "*.yml"
     register: list_of_scrape_files
 
   - name: Select names of scrape_config files
-    set_fact:
+    ansible.builtin.set_fact:
       list_of_scrape_filenames: "{{ list_of_scrape_filenames|default([]) + [ item.path|basename ] }}"
     with_items: "{{ list_of_scrape_files.files }}"
 
   - name: Set list of names
-    set_fact:
+    ansible.builtin.set_fact:
       list_of_filenames_to_add: "{{ list_of_filenames_to_add|default([]) + [ item.filename ] }}"
     with_items: "{{ vmagent_additional_configs | flatten }}"
 
   - name: Clear scrape_configs directory
-    file:
+    ansible.builtin.file:
       path: "{{ vmagent_config_dir }}/scrape_configs/{{ item }}"
       state: absent
-    with_items: "{{ list_of_scrape_filenames | default([]) | difference(list_of_filenames_to_add) }}"
+    with_items: "{{ list_of_scrape_filenames | default([]) | difference(list_of_filenames_to_add | default([])) }}"
     notify:
       - Check configuration
       - Reload vmagent
 
   - name: Ensure additional configuration files
-    copy:
+    ansible.builtin.copy:
       content: "{{ item.data | to_nice_yaml(indent=2) }}"
       dest: "{{ vmagent_config_dir }}/scrape_configs/{{ item.filename }}"
       mode: 0644
@@ -100,35 +100,35 @@
 - name: Deploy vmagent to docker swarm
   block:
     - name: Ensure pip installation
-      package:
+      ansible.builtin.package:
         name: "python3-pip"
         state: present
 
     - name: Install newer version of pip itself
-      pip:
+      ansible.builtin.pip:
         name: "pip"
         state: latest
         executable: pip3
       when:
-        - ansible_distribution == "ubuntu"
-        - ansible_distribution_major_version != 24
+        - ansible_facts['distribution'] | lower == "ubuntu"
+        - ansible_facts['distribution_major_version'] | int != 24
 
     - name: Install jsondiff from pip
-      pip:
+      ansible.builtin.pip:
         name: "jsondiff"
         state: present
         executable: pip3
       when:
-        - ansible_distribution == "ubuntu"
-        - ansible_distribution_major_version != 24
+        - ansible_facts['distribution'] | lower == "ubuntu"
+        - ansible_facts['distribution_major_version'] | int != 24
 
     - name: Ensure jsondiff
-      package:
+      ansible.builtin.package:
         name: "python3-jsondiff"
         state: present
       when:
-        - ansible_distribution == "ubuntu"
-        - ansible_distribution_major_version == 24
+        - ansible_facts['distribution'] | lower == "ubuntu"
+        - ansible_facts['distribution_major_version'] | int == 24
 
     - name: Check if config-file has changes
       community.docker.docker_config:
@@ -179,7 +179,7 @@
                 external: true
             networks: "{{ vmagent_swarm_networks }}"
       run_once: True
-  delegate_to: "{{ vm_swarm_manager }}"
+  delegate_to: "{{ vm_swarm_manager | default(omit) }}"
   when:
     - vmagent_swarm_cluster
     - vm_swarm_manager is defined
