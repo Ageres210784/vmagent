@@ -176,6 +176,8 @@
                 configs:
                   - source: vmagent-config
                     target: /etc/prometheus/prometheus.yml
+                    uid: "{{ vmagent_uid }}"
+                    gid: "{{ vmagent_gid }}"
                 volumes:
                   - "/var/run/docker.sock:/var/run/docker.sock:ro"
                 extra_hosts: "{{ vmagent_extra_hosts }}"
