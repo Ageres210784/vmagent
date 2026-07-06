@@ -12,6 +12,7 @@ vmagent_ports:
   - "{{ '' if vmagent_swarm_cluster | bool else vmagent_address + ':' }}{{ vmagent_port }}:8429"
 vmagent_uid: "10000"
 vmagent_gid: "{{ vmagent_uid }}"
+vmagent_docker_group_id: "999"
 
 # address and port vminsert or balancer
 vmagent_remotewrite_address: "{{ ansible_host }}"

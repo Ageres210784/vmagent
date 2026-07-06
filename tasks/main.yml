@@ -93,6 +93,8 @@
             labels: "{{ vmagent_docker_labels }}"
             extra_hosts: "{{ vmagent_extra_hosts }}"
             user: "{{ vmagent_uid }}:{{ vmagent_gid }}"
+            group_add:
+              - "{{ vmagent_docker_group_id }}"
         networks:
           default:
             external: true
@@ -185,3 +187,17 @@
                 external: true
             networks: "{{ vmagent_swarm_networks }}"
       run_once: true
+
+    - name: Get current service spec
+      community.docker.docker_swarm_service_info:
+        name: "{{ vmagent_stack_name }}_vmagent"
+      register: service_info
+      run_once: true
+
+    - name: Add docker group if missing
+      ansible.builtin.command:
+        cmd: docker service update --group-add {{ vmagent_docker_group_id }} {{ vmagent_stack_name }}_vmagent
+      run_once: true
+      when: >
+        vmagent_docker_group_id|string not in
+        (service_info.Spec.TaskTemplate.ContainerSpec.Groups | default([]) | map('string') | list)
