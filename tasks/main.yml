@@ -1,21 +1,22 @@
 ---
 - name: Deploy vmagent to docker container
+  when: not vmagent_swarm_cluster or vm_swarm_manager is undefined
   block:
   - name: Ensure storage directory
     ansible.builtin.file:
       state: directory
       path: "{{ vmagent_storage_dir }}"
       mode: 0755
-      owner: root
-      group: root
+      owner: "{{ vmagent_uid }}"
+      group: "{{ vmagent_gid }}"
 
   - name: Ensure scrape_configs directory
     ansible.builtin.file:
       state: directory
       path: "{{ vmagent_config_dir }}/scrape_configs"
       mode: 0755
-      owner: root
-      group: root
+      owner: "{{ vmagent_uid }}"
+      group: "{{ vmagent_gid }}"
 
   - name: Show configuration
     ansible.builtin.debug:
@@ -28,8 +29,8 @@
       src: prometheus.yml.j2
       dest: "{{ vmagent_config_dir }}/prometheus.yml"
       mode: 0755
-      owner: root
-      group: root
+      owner: "{{ vmagent_uid }}"
+      group: "{{ vmagent_gid }}"
     notify:
       - Check configuration
       - Reload vmagent
@@ -42,12 +43,12 @@
 
   - name: Select names of scrape_config files
     ansible.builtin.set_fact:
-      list_of_scrape_filenames: "{{ list_of_scrape_filenames|default([]) + [ item.path|basename ] }}"
+      list_of_scrape_filenames: "{{ list_of_scrape_filenames | default([]) + [item.path | basename] }}"
     with_items: "{{ list_of_scrape_files.files }}"
 
   - name: Set list of names
     ansible.builtin.set_fact:
-      list_of_filenames_to_add: "{{ list_of_filenames_to_add|default([]) + [ item.filename ] }}"
+      list_of_filenames_to_add: "{{ list_of_filenames_to_add | default([]) + [item.filename] }}"
     with_items: "{{ vmagent_additional_configs | flatten }}"
 
   - name: Clear scrape_configs directory
@@ -64,8 +65,8 @@
       content: "{{ item.data | to_nice_yaml(indent=2) }}"
       dest: "{{ vmagent_config_dir }}/scrape_configs/{{ item.filename }}"
       mode: 0644
-      owner: root
-      group: root
+      owner: "{{ vmagent_uid }}"
+      group: "{{ vmagent_gid }}"
     with_items: "{{ vmagent_additional_configs | flatten }}"
     notify:
       - Check configuration
@@ -91,13 +92,19 @@
             restart: always
             labels: "{{ vmagent_docker_labels }}"
             extra_hosts: "{{ vmagent_extra_hosts }}"
+            user: "{{ vmagent_uid }}:{{ vmagent_gid }}"
+            group_add:
+              - "{{ vmagent_docker_group_id }}"
         networks:
           default:
             external: true
             name: "{{ vmagent_docker_network_name }}"
-  when: not vmagent_swarm_cluster or vm_swarm_manager is undefined
 
 - name: Deploy vmagent to docker swarm
+  delegate_to: "{{ vm_swarm_manager | default(omit) }}"
+  when:
+    - vmagent_swarm_cluster
+    - vm_swarm_manager is defined
   block:
     - name: Ensure pip installation
       ansible.builtin.package:
@@ -134,15 +141,15 @@
       community.docker.docker_config:
         name: vmagent-config
         data: "{{ prometheus_config | to_nice_yaml(indent=2) }}"
-      check_mode: yes
+      check_mode: true
       register: config_changes
-      run_once: True
+      run_once: true
 
     - name: Delete service
       community.docker.docker_swarm_service:
         state: absent
         name: "{{ vmagent_stack_name }}_vmagent"
-      run_once: True
+      run_once: true
       when: config_changes.changed
 
     - name: Update config
@@ -150,14 +157,14 @@
         name: vmagent-config
         data: "{{ prometheus_config | to_nice_yaml(indent=2) }}"
         state: present
-      run_once: True
+      run_once: true
       when: config_changes.changed
 
     - name: Deploy docker vmagent container in swarm
       community.docker.docker_stack:
         state: present
         name: "{{ vmagent_stack_name }}"
-        with_registry_auth: yes
+        with_registry_auth: true
         compose:
           - services:
               vmagent:
@@ -169,17 +176,30 @@
                 configs:
                   - source: vmagent-config
                     target: /etc/prometheus/prometheus.yml
+                    uid: "{{ vmagent_uid }}"
+                    gid: "{{ vmagent_gid }}"
                 volumes:
                   - "/var/run/docker.sock:/var/run/docker.sock:ro"
                 extra_hosts: "{{ vmagent_extra_hosts }}"
                 deploy: "{{ vmagent_swarm_deploy }}"
                 networks: "{{ vmagent_swarm_networks.keys() }}"
+                user: "{{ vmagent_uid }}:{{ vmagent_gid }}"
             configs:
               vmagent-config:
                 external: true
             networks: "{{ vmagent_swarm_networks }}"
-      run_once: True
-  delegate_to: "{{ vm_swarm_manager | default(omit) }}"
-  when:
-    - vmagent_swarm_cluster
-    - vm_swarm_manager is defined
+      run_once: true
+
+    - name: Get current service spec
+      community.docker.docker_swarm_service_info:
+        name: "{{ vmagent_stack_name }}_vmagent"
+      register: service_info
+      run_once: true
+
+    - name: Add docker group if missing
+      ansible.builtin.command:
+        cmd: docker service update --group-add {{ vmagent_docker_group_id }} {{ vmagent_stack_name }}_vmagent
+      run_once: true
+      when: >
+        vmagent_docker_group_id|string not in
+        (service_info.Spec.TaskTemplate.ContainerSpec.Groups | default([]) | map('string') | list)
